@@ -1,509 +1,368 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ReHabilita</title>
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="css/styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ReHabilita - Aplicación gratuita de rehabilitación post-ACV">
+    <title>ReHabilita - Recuperación Post-ACV</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0066CC">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/exercises.css">
+    <link rel="stylesheet" href="css/animations.css">
+    
+    <!-- MediaPipe CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 </head>
-
-<body class="h-screen w-screen overflow-hidden flex flex-col text-slate-900 transition-all duration-300 bg-slate-50">
-
-    <!-- Neglect Mode Cue -->
-    <div class="neglect-cue"></div>
-
-    <!-- HEADER -->
-    <header
-        class="bg-white/80 backdrop-blur-md p-3 shadow-sm flex justify-between items-center z-20 relative shrink-0 border-b border-slate-200">
-        <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
-            <div class="bg-rose-50 p-2 rounded-xl text-rose-500 border border-rose-100"><i
-                    class="fa-solid fa-brain text-2xl"></i></div>
-            <div>
-                <h1 class="text-xl font-bold tracking-tight leading-none text-slate-800">Re<span
-                        class="text-rose-500">H</span>abilita</h1>
-            </div>
+<body>
+    <!-- Pantalla de Carga -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loader"></div>
+            <h1>ReHabilita</h1>
+            <p>Cargando tu sesión de recuperación...</p>
         </div>
-        <div class="flex gap-2">
-            <button onclick="toggleSettings()"
-                class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-600 border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition active:scale-95 shadow-sm"
-                aria-label="Configuración"><i class="fa-solid fa-gear text-xl"></i></button>
-        </div>
-    </header>
-
-    <!-- PROGRESO -->
-    <div id="progress-container" class="hidden w-full bg-slate-200 h-2 shrink-0">
-        <div id="progress-bar"
-            class="bg-rose-500 h-2 transition-all duration-500 ease-out rounded-r-full shadow-[0_0_10px_rgba(225,29,72,0.5)]"
-            style="width: 0%"></div>
     </div>
 
-    <!-- MAIN -->
-    <main id="app-container"
-        class="flex-1 relative overflow-y-auto overflow-x-hidden bg-slate-50 scroll-smooth transition-all duration-300 pb-safe">
-
-        <!-- DASHBOARD -->
-        <div id="screen-home" class="p-4 min-h-full flex flex-col max-w-lg mx-auto gap-6 pb-8 pt-8 justify-center">
-            <div class="text-center mb-2">
-                <p class="text-slate-500 text-lg font-medium mb-1" data-i18n="greeting">Hola, Campeón/a</p>
-                <h2 class="text-3xl font-black text-slate-800" data-i18n="readyMsg">¿Listo para hoy?</h2>
+    <!-- Contenedor Principal -->
+    <div id="app" class="app-container" style="display: none;">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>💪 ReHabilita</h1>
+                </div>
+                <div class="user-stats">
+                    <div class="stat-item">
+                        <span class="stat-icon">🔥</span>
+                        <span id="streak-count">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">⭐</span>
+                        <span id="points-count">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">📊</span>
+                        <span id="level-count">1</span>
+                    </div>
+                </div>
+                <button id="settings-btn" class="icon-btn" aria-label="Configuración">⚙️</button>
             </div>
+        </header>
 
-            <button onclick="startDailyPlan()"
-                class="btn-huge bg-white rounded-[2.5rem] p-8 shadow-xl border-2 border-rose-100 flex flex-col items-center gap-6 group hover:border-rose-300 transition-all transform hover:-translate-y-1 relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-rose-400 to-orange-400"></div>
-                <div
-                    class="bg-rose-50 w-24 h-24 rounded-full flex items-center justify-center text-rose-500 shadow-inner mb-2 group-hover:scale-110 transition-transform duration-500">
-                    <i class="fa-solid fa-play text-5xl ml-2"></i>
-                </div>
-                <div class="text-center">
-                    <span class="block text-2xl font-black text-slate-800 mb-2" data-i18n="startBtn">EMPEZAR MI
-                        SESIÓN</span>
-                    <span class="text-slate-500 font-medium bg-slate-100 px-4 py-1 rounded-full text-sm">3 Ejercicios •
-                        10 Minutos</span>
-                </div>
+        <!-- Navegación Principal -->
+        <nav class="main-nav">
+            <button class="nav-btn active" data-view="home">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">Inicio</span>
             </button>
+            <button class="nav-btn" data-view="exercises">
+                <span class="nav-icon">💪</span>
+                <span class="nav-label">Ejercicios</span>
+            </button>
+            <button class="nav-btn" data-view="progress">
+                <span class="nav-icon">📈</span>
+                <span class="nav-label">Progreso</span>
+            </button>
+            <button class="nav-btn" data-view="camera">
+                <span class="nav-icon">📹</span>
+                <span class="nav-label">Cámara</span>
+            </button>
+        </nav>
 
-            <div class="grid grid-cols-2 gap-4 mt-2">
-                <div class="card-elite p-5 text-center">
-                    <span class="block text-3xl font-black text-slate-800" id="streak-display">0</span>
-                    <span class="text-xs text-slate-400 font-bold uppercase tracking-widest"
-                        data-i18n="streakLabel">Días Seguidos</span>
-                </div>
-                <button onclick="showStats()" class="card-elite p-5 text-center hover:bg-slate-50 btn-huge">
-                    <i class="fa-solid fa-chart-pie text-3xl text-blue-500 mb-1"></i>
-                    <span class="block text-xs text-slate-400 font-bold uppercase tracking-widest mt-1"
-                        data-i18n="viewHistory">Historial</span>
-                </button>
-            </div>
-
-            <!-- Botones Secundarios -->
-            <div class="flex flex-col gap-3 mt-4">
-                <button onclick="showPrevention()"
-                    class="w-full bg-white border border-slate-200 py-3 rounded-xl text-slate-600 font-bold text-sm flex items-center justify-center gap-2 hover:bg-rose-50 hover:text-rose-600 transition shadow-sm btn-huge">
-                    <i class="fa-solid fa-heart-circle-exclamation"></i> <span data-i18n="prevBtn">Signos de Alerta
-                        (Prevención)</span>
-                </button>
-                <button onclick="showFreeMode()"
-                    class="text-slate-400 text-sm font-bold hover:text-slate-600 transition underline decoration-slate-300 decoration-2 underline-offset-4 text-center btn-huge"
-                    data-i18n="freeMode">
-                    O elegir un ejercicio suelto
-                </button>
-            </div>
-        </div>
-
-        <!-- MODO LIBRE -->
-        <div id="screen-freemode" class="hidden p-4 min-h-full flex flex-col max-w-lg mx-auto gap-4 pt-6">
-            <div class="flex items-center gap-3 mb-4">
-                <button onclick="goHome()"
-                    class="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 btn-huge shadow-sm"><i
-                        class="fa-solid fa-arrow-left"></i></button>
-                <h2 class="text-xl font-bold text-slate-800" data-i18n="trainTitle">Entrenamiento Libre</h2>
-            </div>
-            <div class="grid grid-cols-1 gap-3">
-                <button onclick="startSession('movimiento')" class="card-elite p-4 flex items-center gap-4 btn-huge">
-                    <div class="bg-amber-100 w-12 h-12 rounded-xl flex items-center justify-center text-amber-600"><i
-                            class="fa-solid fa-hand-pointer text-2xl"></i></div><span class="font-bold text-slate-700"
-                        data-i18n="modMovTitle">Movimiento</span>
-                </button>
-                <button onclick="startSession('memoria')" class="card-elite p-4 flex items-center gap-4 btn-huge">
-                    <div class="bg-violet-100 w-12 h-12 rounded-xl flex items-center justify-center text-violet-600"><i
-                            class="fa-solid fa-brain text-2xl"></i></div><span class="font-bold text-slate-700"
-                        data-i18n="modMemTitle">Memoria</span>
-                </button>
-                <button onclick="startSession('lenguaje')" class="card-elite p-4 flex items-center gap-4 btn-huge">
-                    <div class="bg-blue-100 w-12 h-12 rounded-xl flex items-center justify-center text-blue-600"><i
-                            class="fa-solid fa-comments text-2xl"></i></div><span class="font-bold text-slate-700"
-                        data-i18n="modLangTitle">Lenguaje</span>
-                </button>
-                <button onclick="startSession('trazos')" class="card-elite p-4 flex items-center gap-4 btn-huge">
-                    <div class="bg-orange-100 w-12 h-12 rounded-xl flex items-center justify-center text-orange-600"><i
-                            class="fa-solid fa-pen-nib text-2xl"></i></div><span class="font-bold text-slate-700"
-                        data-i18n="modTraceTitle">Trazos</span>
-                </button>
-                <button onclick="startSession('secuencia')" class="card-elite p-4 flex items-center gap-4 btn-huge">
-                    <div class="bg-emerald-100 w-12 h-12 rounded-xl flex items-center justify-center text-emerald-600">
-                        <i class="fa-solid fa-music text-2xl"></i>
-                    </div><span class="font-bold text-slate-700" data-i18n="modSeqTitle">Secuencia</span>
-                </button>
-                <button onclick="startSession('numeros')" class="card-elite p-4 flex items-center gap-4 btn-huge">
-                    <div class="bg-cyan-100 w-12 h-12 rounded-xl flex items-center justify-center text-cyan-600"><i
-                            class="fa-solid fa-hashtag text-2xl"></i></div><span class="font-bold text-slate-700"
-                        data-i18n="modNumTitle">Números</span>
-                </button>
-                <button onclick="startSession('sides')" class="card-elite p-4 flex items-center gap-4 btn-huge">
-                    <div class="bg-pink-100 w-12 h-12 rounded-xl flex items-center justify-center text-pink-600"><i
-                            class="fa-solid fa-circle-dot text-2xl"></i></div><span class="font-bold text-slate-700"
-                        data-i18n="modSideTitle">Toca el Lado</span>
-                </button>
-                <button onclick="startSession('drag')" class="card-elite p-4 flex items-center gap-4 btn-huge">
-                    <div class="bg-purple-100 w-12 h-12 rounded-xl flex items-center justify-center text-purple-600"><i
-                            class="fa-solid fa-hand-pointer text-2xl"></i></div><span class="font-bold text-slate-700"
-                        data-i18n="modDragTitle">Arrastra</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- PANTALLA PREVENCIÓN -->
-        <div id="screen-prevention" class="hidden p-4 min-h-full flex flex-col max-w-lg mx-auto gap-6 pt-6">
-            <div class="flex items-center gap-3">
-                <button onclick="goHome()"
-                    class="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 btn-huge shadow-sm"><i
-                        class="fa-solid fa-arrow-left"></i></button>
-                <h2 class="text-xl font-bold text-slate-800">Signos de Alerta</h2>
-            </div>
-            <div class="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-start gap-3">
-                <i class="fa-solid fa-triangle-exclamation text-red-500 mt-1"></i>
-                <p class="text-sm text-red-800 font-medium">Si detecta estos síntomas, llame a emergencias
-                    inmediatamente (112/911).</p>
-            </div>
-            <div class="grid grid-cols-1 gap-4">
-                <div class="card-elite p-5 flex items-center gap-4">
-                    <div class="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center text-2xl">⚖️</div>
-                    <div>
-                        <h3 class="font-bold text-slate-800">Equilibrio</h3>
-                        <p class="text-sm text-slate-500">Pérdida súbita de estabilidad.</p>
+        <!-- Vista: Inicio -->
+        <main id="home-view" class="view active">
+            <div class="welcome-section">
+                <h2>¡Bienvenido de vuelta! 👋</h2>
+                <p class="subtitle">Continuemos tu recuperación</p>
+                
+                <!-- Progreso del Día -->
+                <div class="daily-progress">
+                    <div class="progress-header">
+                        <h3>Meta Diaria</h3>
+                        <span id="daily-goal">0/20 min</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="daily-progress-fill" class="progress-fill"></div>
                     </div>
                 </div>
-                <div class="card-elite p-5 flex items-center gap-4">
-                    <div class="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center text-2xl">👁️</div>
-                    <div>
-                        <h3 class="font-bold text-slate-800">Ojos</h3>
-                        <p class="text-sm text-slate-500">Pérdida de visión o dolor ocular.</p>
+
+                <!-- Ejercicio Recomendado -->
+                <div class="recommended-card">
+                    <div class="card-badge">Recomendado</div>
+                    <h3 id="recommended-title">Tocar Dedos</h3>
+                    <p id="recommended-desc">Mejora tu destreza fina tocando cada dedo con tu pulgar</p>
+                    <div class="card-stats">
+                        <span>⏱️ 5 min</span>
+                        <span>⭐ +50 pts</span>
+                        <span>📊 Nivel 1</span>
                     </div>
-                </div>
-                <div class="card-elite p-5 flex items-center gap-4">
-                    <div class="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center text-2xl">🥴</div>
-                    <div>
-                        <h3 class="font-bold text-slate-800">Rostro</h3>
-                        <p class="text-sm text-slate-500">Cara caída o asimétrica.</p>
-                    </div>
-                </div>
-                <div class="card-elite p-5 flex items-center gap-4">
-                    <div class="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center text-2xl">💪</div>
-                    <div>
-                        <h3 class="font-bold text-slate-800">Brazos</h3>
-                        <p class="text-sm text-slate-500">Debilidad en un brazo/pierna.</p>
-                    </div>
-                </div>
-                <div class="card-elite p-5 flex items-center gap-4">
-                    <div class="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center text-2xl">🗣️</div>
-                    <div>
-                        <h3 class="font-bold text-slate-800">Habla</h3>
-                        <p class="text-sm text-slate-500">Habla arrastrada o confusa.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- PANTALLAS DE MÓDULOS -->
-        <div id="screen-calma"
-            class="hidden h-full flex flex-col items-center justify-center p-6 bg-sky-50 absolute inset-0 z-50">
-            <div class="text-center mb-10">
-                <h2 class="text-3xl font-bold text-sky-800 mb-2" data-i18n="breatheTitle">Pausa</h2>
-                <p class="text-sky-600 text-lg" data-i18n="breatheSubtitle">Respira hondo...</p>
-            </div>
-            <div class="relative w-64 h-64 flex items-center justify-center">
-                <div class="absolute w-full h-full bg-sky-200 rounded-full opacity-30 breathe-circle"></div>
-                <div class="w-48 h-48 bg-sky-400 rounded-full flex items-center justify-center shadow-xl breathe-circle text-white text-2xl font-bold tracking-widest z-10"
-                    id="breathe-text">INHALA</div>
-            </div>
-            <button onclick="resumeFromCalm()"
-                class="mt-16 bg-white text-sky-600 px-8 py-3 rounded-full font-bold shadow-md hover:bg-sky-50 transition border border-sky-100 btn-huge"
-                data-i18n="btnResume">Continuar</button>
-        </div>
-
-        <div id="screen-lenguaje" class="hidden h-full flex flex-col items-center p-4 pt-6">
-            <div
-                class="card-elite p-8 w-full max-w-xs aspect-square flex flex-col items-center justify-center relative mb-8">
-                <span id="lang-emoji" class="text-9xl animate-pop mb-4"></span><button onclick="useHint()" id="btn-hint"
-                    class="bg-amber-100 text-amber-900 px-6 py-2 rounded-full font-bold flex items-center gap-2 btn-huge"><i
-                        class="fa-solid fa-lightbulb"></i> <span data-i18n="btnHint">Pista</span></button>
-            </div>
-            <div id="lang-options-grid" class="grid grid-cols-1 gap-4 w-full max-w-sm"></div>
-            <p id="lang-feedback" class="mt-6 text-xl font-bold h-8 text-center text-slate-500"></p>
-        </div>
-
-        <div id="screen-memoria" class="hidden h-full flex flex-col items-center justify-center p-4">
-            <h3 class="text-lg text-slate-500 mb-8 font-bold" data-i18n="memTitle">Encuentra las parejas</h3>
-            <div id="memoria-grid" class="grid gap-4 w-full max-w-sm grid-cols-2"></div>
-        </div>
-
-        <div id="screen-movimiento" class="hidden h-full relative w-full flex flex-col bg-slate-800">
-            <div class="absolute inset-0 z-0 flex items-center justify-center"><img id="hidden-image" src=""
-                    class="w-full h-full object-cover opacity-80"></div>
-            <canvas id="scratch-canvas" class="absolute inset-0 z-10 cursor-crosshair touch-none"></canvas>
-            <div class="absolute top-6 left-0 right-0 text-center z-20 pointer-events-none">
-                <div
-                    class="inline-flex items-center gap-3 bg-black/60 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 text-white">
-                    <span class="text-lg font-bold" data-i18n="movInst">Limpia la pantalla</span>
-                </div>
-            </div>
-            <div id="clean-success" class="hidden absolute bottom-12 left-0 right-0 z-30 flex justify-center"><button
-                    onclick="finishMovementGame()"
-                    class="bg-rose-600 text-white px-8 py-4 rounded-full text-xl font-bold shadow-2xl animate-pop flex items-center gap-3 btn-huge"><span
-                        data-i18n="movSuccess">¡Listo!</span> <i class="fa-solid fa-arrow-right"></i></button></div>
-        </div>
-
-        <div id="screen-trazos" class="hidden h-full relative w-full flex flex-col bg-white overflow-hidden">
-            <div class="absolute top-6 left-0 right-0 flex justify-center z-20 pointer-events-none">
-                <div
-                    class="bg-white/90 backdrop-blur-md px-6 py-2 rounded-full border border-slate-200 shadow-md text-slate-800">
-                    <span class="text-lg font-bold" data-i18n="traceInst">Sigue la línea</span>
-                </div>
-            </div><canvas id="trace-canvas" class="absolute inset-0 z-10 cursor-crosshair touch-none"></canvas>
-            <div id="trace-success" class="hidden absolute bottom-12 left-0 right-0 z-30 flex justify-center"><button
-                    onclick="finishMovementGame()"
-                    class="bg-orange-500 text-white px-8 py-4 rounded-full text-xl font-bold shadow-2xl animate-pop flex items-center gap-3 btn-huge"><span
-                        data-i18n="correct">¡Muy bien!</span> <i class="fa-solid fa-check"></i></button></div>
-        </div>
-
-        <div id="screen-secuencia" class="hidden h-full flex flex-col items-center justify-center p-4">
-            <h3 class="text-lg text-slate-500 mb-8 font-bold" data-i18n="seqInst">Repite los colores</h3>
-            <div id="seq-grid" class="grid gap-6 w-full max-w-sm grid-cols-2">
-                <!-- Generated by JS -->
-            </div>
-            <p id="seq-feedback" class="mt-8 text-xl font-bold h-8 text-center text-rose-500"></p>
-        </div>
-
-        <div id="screen-numeros" class="hidden h-full flex flex-col items-center justify-center p-4">
-            <h3 class="text-lg text-slate-500 mb-8 font-bold" data-i18n="numInst">Toca en orden del 1 al 9</h3>
-            <div id="num-grid" class="grid gap-4 w-full max-w-md grid-cols-3">
-                <!-- Generated by JS -->
-            </div>
-        </div>
-
-        <div id="screen-sides"
-            class="hidden h-full relative flex flex-col items-center justify-center p-4 bg-gradient-to-br from-pink-50 to-rose-50">
-            <h3 class="text-lg text-slate-500 mb-4 font-bold z-10" data-i18n="sideInst">Toca los círculos</h3>
-            <p id="sides-counter" class="text-3xl font-black text-rose-600 mb-8 z-10">0/10</p>
-            <div id="sides-container" class="absolute inset-0">
-                <!-- Generated by JS -->
-            </div>
-        </div>
-
-        <div id="screen-drag"
-            class="hidden h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-50 to-blue-50">
-            <h3 class="text-lg text-slate-500 mb-8 font-bold" data-i18n="dragInst">Arrastra al contenedor</h3>
-            <div class="flex gap-8 items-center w-full max-w-2xl relative">
-                <div class="flex-1 grid grid-cols-2 gap-4 relative">
-                    <div
-                        class="drag-item w-24 h-24 bg-red-400 rounded-2xl flex items-center justify-center text-5xl shadow-lg transition-all">
-                        🍎</div>
-                    <div
-                        class="drag-item w-24 h-24 bg-yellow-400 rounded-2xl flex items-center justify-center text-5xl shadow-lg transition-all">
-                        🍌</div>
-                    <div
-                        class="drag-item w-24 h-24 bg-orange-400 rounded-2xl flex items-center justify-center text-5xl shadow-lg transition-all">
-                        🍊</div>
-                    <div
-                        class="drag-item w-24 h-24 bg-green-400 rounded-2xl flex items-center justify-center text-5xl shadow-lg transition-all">
-                        🍏</div>
-                </div>
-                <div id="drag-target"
-                    class="w-56 h-56 border-4 border-dashed border-purple-400 rounded-3xl bg-white/50 flex items-center justify-center">
-                    <i class="fa-solid fa-basket-shopping text-7xl text-purple-300"></i>
-                </div>
-            </div>
-        </div>
-
-        <div id="screen-stats" class="hidden min-h-full p-4 flex flex-col max-w-xl mx-auto pt-6">
-            <div class="flex items-center gap-4 mb-8"><button onclick="goHome()"
-                    class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-slate-600 btn-huge"><i
-                        class="fa-solid fa-arrow-left"></i></button>
-                <h2 class="text-2xl font-bold text-slate-800" data-i18n="statsTitle">Mi Historial</h2>
-            </div>
-            <div id="stats-content" class="card-elite p-6 mb-6">
-                <div class="chart-container"><canvas id="progressChart"></canvas></div>
-            </div>
-            <div id="stats-empty" class="hidden card-elite p-8 mb-6 text-center">
-                <div
-                    class="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-                    <i class="fa-solid fa-chart-simple text-2xl"></i>
-                </div>
-                <p class="text-slate-500 font-bold">Aún no tienes datos</p>
-            </div>
-            <button onclick="resetData()"
-                class="mt-auto mb-8 p-4 rounded-2xl border-2 border-rose-100 text-rose-600 font-bold hover:bg-rose-50 flex items-center justify-center gap-2 w-full btn-huge"><i
-                    class="fa-solid fa-trash-can"></i> <span data-i18n="resetData">Reiniciar</span></button>
-        </div>
-
-    </main>
-
-    <!-- MODAL FEEDBACK -->
-    <div id="modal-feedback"
-        class="fixed inset-0 bg-black/40 z-[60] hidden items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 animate-pop">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-slate-800">Danos tu opinión</h2><button onclick="toggleFeedback()"
-                    class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <textarea id="feedback-input"
-                class="w-full border-2 border-slate-200 rounded-xl p-3 mb-4 h-32 resize-none focus:border-rose-500 focus:outline-none"
-                placeholder="Escribe aquí..."></textarea>
-            <button onclick="submitFeedback()"
-                class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition btn-huge">Enviar
-                Sugerencia</button>
-        </div>
-    </div>
-
-    <!-- ONBOARDING -->
-    <div id="modal-onboarding"
-        class="fixed inset-0 bg-slate-900/95 z-[100] hidden flex-col items-center justify-center p-6 backdrop-blur-md">
-        <div
-            class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-pop transition-all">
-            <div id="step-legal" class="flex flex-col h-full">
-                <div class="bg-slate-50 p-8 text-center border-b border-slate-100">
-                    <div
-                        class="bg-rose-100 w-16 h-16 rounded-full flex items-center justify-center text-rose-600 mx-auto mb-4">
-                        <i class="fa-solid fa-brain text-3xl"></i>
-                    </div>
-                    <h2 class="text-2xl font-black text-slate-800" data-i18n="legalTitle">Bienvenido</h2>
-                </div>
-                <div class="p-8 overflow-y-auto text-slate-600 space-y-4 text-base leading-relaxed text-center flex-1">
-                    <p data-i18n="legalText1">Esta aplicación es una <strong>herramienta de asistencia</strong> diseñada
-                        para la intermediación comunicacional y el entrenamiento.</p>
-                    <div class="bg-amber-50 p-4 rounded-xl text-amber-800 text-sm font-bold border border-amber-100"><i
-                            class="fa-solid fa-shield-halved mr-2"></i> <span data-i18n="legalText2">No constituye
-                            opinión médica ni reemplaza a profesionales de la salud. El uso es bajo su exclusiva
-                            responsabilidad.</span></div>
-                </div>
-                <div class="p-6 bg-slate-50 border-t border-slate-100"><button onclick="startCalibration()"
-                        class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-lg hover:bg-slate-800 transition shadow-lg btn-huge"><span
-                            data-i18n="btnAccept">Acepto y Continuar</span></button></div>
-            </div>
-            <div id="step-calibration" class="hidden flex-col h-full bg-slate-50 relative min-h-[400px]">
-                <div class="w-full p-6 text-center z-10 bg-white border-b border-slate-100 shadow-sm">
-                    <h2 class="text-xl font-bold text-slate-800" data-i18n="calibTitle">Toca el botón rojo</h2>
-                    <p class="text-sm text-slate-500 mt-1" data-i18n="calibDesc">Configurando...</p>
-                </div>
-                <div class="flex-1 relative w-full h-full overflow-hidden cursor-crosshair">
-                    <button id="calibration-target" onclick="handleCalibrationClick()"
-                        class="absolute calibration-target w-20 h-20 bg-rose-500 rounded-full shadow-2xl flex items-center justify-center text-white text-2xl border-4 border-white btn-huge"
-                        style="top: 50%; left: 5%; transform: translateY(-50%);"><i
-                            class="fa-solid fa-hand-pointer"></i></button>
-                </div>
-            </div>
-            <div id="step-result" class="hidden flex-col h-full">
-                <div class="bg-slate-50 p-8 text-center border-b border-slate-100">
-                    <div
-                        class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center text-green-600 mx-auto mb-4">
-                        <i class="fa-solid fa-check text-3xl"></i>
-                    </div>
-                    <h2 class="text-2xl font-black text-slate-800" data-i18n="setupComplete">¡Todo Listo!</h2>
-                </div>
-                <div class="p-8 text-center flex-1 flex flex-col justify-center">
-                    <p class="text-lg text-slate-600 mb-2" data-i18n="setupMsg">Pantalla adaptada.</p>
-                    <p class="text-sm text-slate-400 font-mono bg-slate-100 py-1 px-3 rounded-full inline-block mx-auto"
-                        id="setup-detail">Normal</p>
-                </div>
-                <div class="p-6 bg-slate-50 border-t border-slate-100"><button onclick="finishOnboarding()"
-                        class="w-full bg-rose-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-rose-700 transition shadow-lg btn-huge"><span
-                            data-i18n="btnFinish">Empezar</span></button></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODALS -->
-    <div id="modal-settings"
-        class="fixed inset-0 bg-black/40 z-50 hidden items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm"
-        onclick="if(event.target===this) toggleSettings()">
-        <div class="bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl shadow-2xl p-6 animate-pop">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-bold text-slate-800" data-i18n="settingsTitle">Configuración</h2><button
-                    onclick="toggleSettings()"
-                    class="bg-slate-100 p-2 rounded-full w-10 h-10 flex items-center justify-center text-slate-500 btn-huge"><i
-                        class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <div class="mb-8 flex gap-4 justify-center"><button onclick="changeLanguage('es')"
-                    class="flag-btn w-20 h-14 rounded-xl text-4xl border-2 border-slate-100 flex items-center justify-center bg-slate-50 btn-huge">🇪🇸</button><button
-                    onclick="changeLanguage('en')"
-                    class="flag-btn w-20 h-14 rounded-xl text-4xl border-2 border-slate-100 flex items-center justify-center bg-slate-50 btn-huge">🇺🇸</button><button
-                    onclick="changeLanguage('pt')"
-                    class="flag-btn w-20 h-14 rounded-xl text-4xl border-2 border-slate-100 flex items-center justify-center bg-slate-50 btn-huge">🇧🇷</button>
-            </div>
-            <div class="space-y-4">
-                <div class="flex justify-between items-center py-4 border-b border-slate-100">
-                    <div>
-                        <p class="font-bold text-slate-800 flex items-center gap-2"><i
-                                class="fa-solid fa-volume-high text-green-500"></i> <span
-                                data-i18n="soundTitle">Sonido</span></p>
-                    </div><button id="btn-sound" onclick="toggleSound()"
-                        class="w-14 h-8 bg-green-500 rounded-full relative transition-colors duration-300 btn-huge">
-                        <div id="knob-sound"
-                            class="w-6 h-6 bg-white rounded-full absolute top-1 left-1 shadow-md transition-transform duration-300 translate-x-6">
-                        </div>
+                    <button id="start-recommended" class="btn-primary btn-large">
+                        Empezar Ahora
                     </button>
                 </div>
-                <div class="flex justify-between items-center py-4 border-b border-slate-100">
-                    <div>
-                        <p class="font-bold text-slate-800 flex items-center gap-2"><i
-                                class="fa-solid fa-align-right text-rose-500"></i> <span data-i18n="neglectMode">Modo
-                                Heminegligencia</span></p>
-                    </div><button id="btn-neglect" onclick="toggleNeglectMode()"
-                        class="w-14 h-8 bg-slate-300 rounded-full relative transition-colors duration-300 btn-huge">
-                        <div id="knob-neglect"
-                            class="w-6 h-6 bg-white rounded-full absolute top-1 left-1 shadow-md transition-transform duration-300">
+
+                <!-- Racha Actual -->
+                <div class="streak-section">
+                    <div class="streak-flame">🔥</div>
+                    <div class="streak-info">
+                        <h3>Racha Actual</h3>
+                        <p class="streak-count"><span id="streak-days">0</span> días consecutivos</p>
+                        <p class="streak-message" id="streak-message">¡Mantén el impulso!</p>
+                    </div>
+                </div>
+
+                <!-- Categorías de Ejercicios -->
+                <section class="exercise-categories">
+                    <h3>Categorías</h3>
+                    <div class="category-grid">
+                        <div class="category-card" data-category="motor">
+                            <div class="category-icon">✋</div>
+                            <h4>Movimiento</h4>
+                            <p>15 ejercicios</p>
                         </div>
+                        <div class="category-card" data-category="cognitive">
+                            <div class="category-icon">🧠</div>
+                            <h4>Cognición</h4>
+                            <p>12 ejercicios</p>
+                        </div>
+                        <div class="category-card" data-category="speech">
+                            <div class="category-icon">💬</div>
+                            <h4>Lenguaje</h4>
+                            <p>10 ejercicios</p>
+                        </div>
+                        <div class="category-card" data-category="balance">
+                            <div class="category-icon">⚖️</div>
+                            <h4>Equilibrio</h4>
+                            <p>8 ejercicios</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Vista: Ejercicios -->
+        <main id="exercises-view" class="view">
+            <div class="exercises-container">
+                <h2>Todos los Ejercicios</h2>
+                
+                <!-- Filtros -->
+                <div class="filters">
+                    <button class="filter-btn active" data-filter="all">Todos</button>
+                    <button class="filter-btn" data-filter="motor">Movimiento</button>
+                    <button class="filter-btn" data-filter="cognitive">Cognición</button>
+                    <button class="filter-btn" data-filter="speech">Lenguaje</button>
+                    <button class="filter-btn" data-filter="balance">Equilibrio</button>
+                </div>
+
+                <!-- Lista de Ejercicios -->
+                <div id="exercises-list" class="exercises-grid">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Vista: Progreso -->
+        <main id="progress-view" class="view">
+            <div class="progress-container">
+                <h2>Tu Progreso</h2>
+                
+                <!-- Resumen Semanal -->
+                <div class="stats-summary">
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value" id="total-time">0</div>
+                        <div class="stat-label">Minutos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-value" id="completed-exercises">0</div>
+                        <div class="stat-label">Ejercicios</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎯</div>
+                        <div class="stat-value" id="accuracy">0%</div>
+                        <div class="stat-label">Precisión</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-value" id="badges-earned">0</div>
+                        <div class="stat-label">Insignias</div>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Progreso Semanal -->
+                <div class="chart-container">
+                    <h3>Progreso Semanal</h3>
+                    <canvas id="weekly-chart"></canvas>
+                </div>
+
+                <!-- Áreas de Enfoque -->
+                <div class="focus-areas">
+                    <h3>Áreas de Enfoque</h3>
+                    <div class="area-progress">
+                        <div class="area-item">
+                            <span class="area-label">Movimiento</span>
+                            <div class="area-bar">
+                                <div class="area-fill" style="width: 75%"></div>
+                            </div>
+                            <span class="area-value">75%</span>
+                        </div>
+                        <div class="area-item">
+                            <span class="area-label">Cognición</span>
+                            <div class="area-bar">
+                                <div class="area-fill" style="width: 60%"></div>
+                            </div>
+                            <span class="area-value">60%</span>
+                        </div>
+                        <div class="area-item">
+                            <span class="area-label">Lenguaje</span>
+                            <div class="area-bar">
+                                <div class="area-fill" style="width: 85%"></div>
+                            </div>
+                            <span class="area-value">85%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insignias -->
+                <div class="badges-section">
+                    <h3>Tus Insignias 🏆</h3>
+                    <div id="badges-grid" class="badges-grid">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Exportar Reporte -->
+                <button id="export-report" class="btn-secondary">
+                    📄 Exportar Reporte para Terapeuta
+                </button>
+            </div>
+        </main>
+
+        <!-- Vista: Cámara (Ejercicios con detección) -->
+        <main id="camera-view" class="view">
+            <div class="camera-container">
+                <h2>Ejercicios con Cámara</h2>
+                <p class="camera-description">
+                    Usa tu cámara para ejercicios interactivos con detección de movimiento
+                </p>
+
+                <!-- Video y Canvas -->
+                <div class="video-container">
+                    <video id="video-input" autoplay playsinline></video>
+                    <canvas id="output-canvas"></canvas>
+                    <div id="camera-feedback" class="camera-feedback"></div>
+                </div>
+
+                <!-- Controles -->
+                <div class="camera-controls">
+                    <button id="start-camera" class="btn-primary">
+                        📹 Activar Cámara
+                    </button>
+                    <button id="stop-camera" class="btn-secondary" style="display: none;">
+                        ⏹️ Detener
                     </button>
                 </div>
-                <div class="flex justify-between items-center py-4">
-                    <div>
-                        <p class="font-bold text-slate-800 flex items-center gap-2"><i
-                                class="fa-solid fa-envelope text-blue-500"></i> Feedback</p>
-                    </div><button onclick="toggleFeedback()" class="text-blue-600 font-bold hover:underline">Enviar
-                        idea</button>
+
+                <!-- Ejercicio Activo -->
+                <div id="camera-exercise" class="camera-exercise" style="display: none;">
+                    <h3 id="camera-exercise-title"></h3>
+                    <p id="camera-exercise-instructions"></p>
+                    <div class="exercise-stats">
+                        <div class="stat">
+                            <span class="stat-label">Repeticiones</span>
+                            <span id="reps-count" class="stat-value">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Precisión</span>
+                            <span id="accuracy-value" class="stat-value">0%</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="mt-4 border-t pt-4 text-center"><button onclick="runTests()"
-                    class="text-xs text-slate-300 hover:text-rose-500 font-mono">Ejecutar Autodiagnóstico
-                    (Tests)</button></div>
-        </div>
-    </div>
+        </main>
 
-    <div id="modal-success"
-        class="fixed inset-0 bg-black/20 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
-        <div
-            class="bg-white p-8 rounded-[2rem] shadow-2xl flex flex-col items-center animate-pop max-w-xs w-full text-center">
-            <div
-                class="bg-green-100 w-24 h-24 rounded-full flex items-center justify-center mb-6 animate-[bounce_1s_infinite]">
-                <i class="fa-solid fa-check text-green-500 text-5xl"></i>
+        <!-- Modal: Ejercicio en Ejecución -->
+        <div id="exercise-modal" class="modal">
+            <div class="modal-content">
+                <button class="modal-close" aria-label="Cerrar">✕</button>
+                <div id="exercise-area">
+                    <!-- Contenido del ejercicio se carga dinámicamente -->
+                </div>
             </div>
-            <h2 class="text-3xl font-black text-slate-800 mb-2" data-i18n="correct">¡Correcto!</h2><button
-                onclick="nextLevel()"
-                class="bg-slate-900 text-white w-full py-4 rounded-2xl text-xl font-bold hover:bg-slate-800 transition shadow-lg mt-4 btn-huge"
-                data-i18n="btnNext">Siguiente</button>
         </div>
-    </div>
-    <div id="modal-goal"
-        class="fixed inset-0 bg-yellow-500/90 hidden items-center justify-center z-[60] backdrop-blur-md p-4">
-        <div
-            class="bg-white p-8 rounded-[2rem] shadow-2xl flex flex-col items-center animate-pop max-w-sm w-full text-center relative overflow-hidden">
-            <i class="fa-solid fa-trophy text-yellow-400 text-8xl mb-6 animate-trophy drop-shadow-xl"></i>
-            <h2 class="text-4xl font-black text-slate-800 mb-3 tracking-tight leading-tight" data-i18n="goalTitle">¡META
-                CUMPLIDA!</h2><button onclick="closeGoalModal()"
-                class="bg-slate-900 text-white w-full py-4 rounded-2xl text-xl font-bold hover:bg-slate-800 transition shadow-xl mt-4 btn-huge"
-                data-i18n="btnThanks">¡Gracias!</button>
+
+        <!-- Modal: Configuración -->
+        <div id="settings-modal" class="modal">
+            <div class="modal-content">
+                <button class="modal-close" aria-label="Cerrar">✕</button>
+                <h2>Configuración</h2>
+                
+                <div class="settings-section">
+                    <h3>Accesibilidad</h3>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="large-text">
+                        <span>Texto Grande</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="high-contrast">
+                        <span>Alto Contraste</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="voice-feedback" checked>
+                        <span>Retroalimentación por Voz</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="sound-effects" checked>
+                        <span>Efectos de Sonido</span>
+                    </label>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Meta Diaria</h3>
+                    <label>
+                        Minutos por día:
+                        <input type="number" id="daily-goal-input" value="20" min="5" max="60" step="5">
+                    </label>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Datos</h3>
+                    <button id="reset-progress" class="btn-danger">
+                        🗑️ Reiniciar Progreso
+                    </button>
+                    <button id="export-data" class="btn-secondary">
+                        💾 Exportar Datos
+                    </button>
+                </div>
+            </div>
         </div>
+
+        <!-- Notificación Flotante -->
+        <div id="notification" class="notification"></div>
     </div>
 
-    <!-- TEST CONSOLE -->
-    <div id="test-modal" class="fixed inset-0 bg-black/80 z-[100] hidden items-center justify-center p-4">
-        <div
-            class="bg-slate-900 w-full max-w-lg rounded-xl p-4 font-mono text-green-400 text-sm shadow-2xl border border-slate-700">
-            <div class="flex justify-between mb-2"><span class="font-bold text-white">System Diagnostics</span><button
-                    onclick="document.getElementById('test-modal').classList.add('hidden')"
-                    class="text-red-400">CLOSE</button></div>
-            <div id="test-output" class="h-64 overflow-y-auto bg-black p-2 rounded mb-2"></div>
-            <div id="test-summary" class="font-bold text-white border-t border-slate-700 pt-2"></div>
-        </div>
-    </div>
-
+    <!-- Scripts -->
+    <script src="js/utils/storage.js"></script>
+    <script src="js/utils/audio.js"></script>
+    <script src="js/utils/notifications.js"></script>
+    <script src="js/detection/hand-detection.js"></script>
+    <script src="js/exercises/motor-exercises.js"></script>
+    <script src="js/exercises/cognitive-exercises.js"></script>
+    <script src="js/exercises/speech-exercises.js"></script>
+    <script src="js/exercises/exercise-manager.js"></script>
+    <script src="js/gamification.js"></script>
+    <script src="js/progress-tracker.js"></script>
     <script src="js/app.js"></script>
 </body>
-
 </html>
