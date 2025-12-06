@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ReHabilita</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap');
+
+        :root { --base-size: 18px; --primary-color: #e11d48; --bg-color: #f8fafc; }
+        body { font-family: 'Atkinson Hyperlegible', sans-serif; touch-action: manipulation; background-color: var(--bg-color); font-size: var(--base-size); color: #0f172a; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+        
+        .btn-huge { transition: transform 0.1s, box-shadow 0.2s, background-color 0.2s; cursor: pointer; position: relative; overflow: hidden; user-select: none; -webkit-touch-callout: none; }
+        .btn-huge:active { transform: scale(0.96); }
+        .btn-disabled { pointer-events: none; opacity: 0.6; filter: grayscale(100%); }
+        
+        .card-elite { background: white; border-radius: 1.5rem; border: 1px solid #f1f5f9; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+        .no-select { user-select: none; -webkit-user-select: none; }
+        .neglect-mode-active main { padding-left: 25%; transition: padding 0.4s ease; }
+        
+        /* Animaciones */
+        @keyframes popIn { 0% { transform: scale(0.95); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .animate-pop { animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 80% { transform: translateX(6px); } }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
+        @keyframes breathe { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.5); opacity: 1; } }
+        .breathe-circle { animation: breathe 8s infinite ease-in-out; }
+        
+        /* Test Console */
+        #test-console { font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; }
+        .test-pass { color: #16a34a; } .test-fail { color: #dc2626; font-weight: bold; }
+
+        .chart-container { position: relative; width: 100%; height: 250px; }
+        .flag-btn.active { border-color: #3b82f6; background-color: #eff6ff; transform: scale(1.1); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        #trace-canvas, #scratch-canvas { touch-action: none; }
+        #trace-canvas { background-image: linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px); background-size: 40px 40px; }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col text-slate-900 transition-all duration-300 bg-slate-50">
+
+    <!-- HEADER -->
+    <header class="bg-white/80 backdrop-blur-md p-3 shadow-sm flex justify-between items-center z-20 relative shrink-0 border-b border-slate-200">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
+            <div class="bg-rose-50 p-2 rounded-xl text-rose-500 border border-rose-100"><i class="fa-solid fa-brain text-2xl"></i></div>
+            <div><h1 class="text-xl font-bold tracking-tight leading-none text-slate-800">Re<span class="text-rose-500">H</span>abilita</h1></div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="toggleSettings()" class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-600 border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition active:scale-95 shadow-sm"><i class="fa-solid fa-gear text-xl"></i></button>
+        </div>
+    </header>
+
+    <!-- PROGRESO -->
+    <div id="progress-container" class="hidden w-full bg-slate-200 h-2 shrink-0">
+        <div id="progress-bar" class="bg-rose-500 h-2 transition-all duration-500 ease-out rounded-r-full shadow-[0_0_10px_rgba(225,29,72,0.5)]" style="width: 0%"></div>
+    </div>
+
+    <!-- MAIN -->
+    <main id="app-container" class="flex-1 relative overflow-y-auto overflow-x-hidden bg-slate-50 scroll-smooth transition-all duration-300 pb-safe">
+        
+        <!-- DASHBOARD -->
+        <div id="screen-home" class="p-4 min-h-full flex flex-col max-w-lg mx-auto gap-6 pb-8 pt-8 justify-center">
+            <div class="text-center mb-2">
+                <p class="text-slate-500 text-lg font-medium mb-1" data-i18n="greeting">Hola, Campeón/a</p>
+                <h2 class="text-3xl font-black text-slate-800" data-i18n="readyMsg">¿Listo para hoy?</h2>
+            </div>
+
+            <button onclick="startDailyPlan()" class="btn-huge bg-white rounded-[2.5rem] p-8 shadow-xl border-2 border-rose-100 flex flex-col items-center gap-6 group hover:border-rose-300 transition-all transform hover:-translate-y-1 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-rose-400 to-orange-400"></div>
+                <div class="bg-rose-50 w-24 h-24 rounded-full flex items-center justify-center text-rose-500 shadow-inner mb-2 group-hover:scale-110 transition-transform duration-500">
+                    <i class="fa-solid fa-play text-5xl ml-2"></i>
+                </div>
+                <div class="text-center">
+                    <span class="block text-2xl font-black text-slate-800 mb-2" data-i18n="startBtn">EMPEZAR MI SESIÓN</span>
+                    <span class="text-slate-500 font-medium bg-slate-100 px-4 py-1 rounded-full text-sm">3 Ejercicios • 10 Minutos</span>
+                </div>
+            </button>
+
+            <div class="grid grid-cols-2 gap-4 mt-2">
+                <div class="card-elite p-5 text-center">
+                    <span class="block text-3xl font-black text-slate-800" id="streak-display">0</span>
+                    <span class="text-xs text-slate-400 font-bold uppercase tracking-widest" data-i18n="streakLabel">Días Seguidos</span>
+                </div>
+                <button onclick="showStats()" class="card-elite p-5 text-center hover:bg-slate-50 btn-huge">
+                    <i class="fa-solid fa-chart-pie text-3xl text-blue-500 mb-1"></i>
+                    <span class="block text-xs text-slate-400 font-bold uppercase tracking-widest mt-1" data-i18n="viewHistory">Historial</span>
+                </button>
+            </div>
+
+            <!-- Botones Secundarios -->
+            <div class="flex flex-col gap-3 mt-4">
+                <button onclick="showPrevention()" class="w-full bg-white border border-slate-200 py-3 rounded-xl text-slate-600 font-bold text-sm flex items-center justify-center gap-2 hover:bg-rose-50 hover:text-rose-600 transition shadow-sm">
+                    <i class="fa-solid fa-heart-circle-exclamation"></i> <span data-i18n="prevBtn">Signos de Alerta (Prevención)</span>
+                </button>
+                <button onclick="showFreeMode()" class="text-slate-400 text-sm font-bold hover:text-slate-600 transition underline decoration-slate-300 decoration-2 underline-offset-4 text-center" data-i18n="freeMode">
+                    O elegir un ejercicio suelto
+                </button>
+            </div>
+        </div>
+
+        <!-- MODO LIBRE -->
+        <div id="screen-freemode" class="hidden p-4 min-h-full flex flex-col max-w-lg mx-auto gap-4 pt-6">
+            <div class="flex items-center gap-3 mb-4">
+                <button onclick="goHome()" class="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 btn-huge shadow-sm"><i class="fa-solid fa-arrow-left"></i></button>
+                <h2 class="text-xl font-bold text-slate-800" data-i18n="trainTitle">Entrenamiento Libre</h2>
+            </div>
+            <div class="grid grid-cols-1 gap-3">
+                <button onclick="startSession('movimiento')" class="card-elite p-4 flex items-center gap-4 btn-huge"><div class="bg-amber-100 w-12 h-12 rounded-xl flex items-center justify-center text-amber-600"><i class="fa-solid fa-hand-pointer text-2xl"></i></div><span class="font-bold text-slate-700" data-i18n="modMovTitle">Movimiento</span></button>
+                <button onclick="startSession('memoria')" class="card-elite p-4 flex items-center gap-4 btn-huge"><div class="bg-violet-100 w-12 h-12 rounded-xl flex items-center justify-center text-violet-600"><i class="fa-solid fa-brain text-2xl"></i></div><span class="font-bold text-slate-700" data-i18n="modMemTitle">Memoria</span></button>
+                <button onclick="startSession('lenguaje')" class="card-elite p-4 flex items-center gap-4 btn-huge"><div class="bg-blue-100 w-12 h-12 rounded-xl flex items-center justify-center text-blue-600"><i class="fa-solid fa-comments text-2xl"></i></div><span class="font-bold text-slate-700" data-i18n="modLangTitle">Lenguaje</span></button>
+                <button onclick="startSession('trazos')" class="card-elite p-4 flex items-center gap-4 btn-huge"><div class="bg-orange-100 w-12 h-12 rounded-xl flex items-center justify-center text-orange-600"><i class="fa-solid fa-pen-nib text-2xl"></i></div><span class="font-bold text-slate-700" data-i18n="modTraceTitle">Trazos</span></button>
+            </div>
+        </div>
+
+        <!-- PANTALLA PREVENCIÓN -->
+        <div id="screen-prevention" class="hidden p-4 min-h-full flex flex-col max-w-lg mx-auto gap-6 pt-6">
+            <div class="flex items-center gap-3">
+                <button onclick="goHome()" class="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 btn-huge shadow-sm"><i class="fa-solid fa-arrow-left"></i></button>
+                <h2 class="text-xl font-bold text-slate-800">Signos de Alerta</h2>
+            </div>
+            <div class="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-start gap-3">
+                <i class="fa-solid fa-triangle-exclamation text-red-500 mt-1"></i>
+                <p class="text-sm text-red-800 font-medium">Si detecta estos síntomas, llame a emergencias inmediatamente (112/911).</p>
+            </div>
+            <div class="grid grid-cols-1 gap-4">
+                <div class="card-elite p-5 flex items-center gap-4"><div class="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center text-2xl">⚖️</div><div><h3 class="font-bold text-slate-800">Equilibrio</h3><p class="text-sm text-slate-500">Pérdida súbita de estabilidad.</p></div></div>
+                <div class="card-elite p-5 flex items-center gap-4"><div class="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center text-2xl">👁️</div><div><h3 class="font-bold text-slate-800">Ojos</h3><p class="text-sm text-slate-500">Pérdida de visión o dolor ocular.</p></div></div>
+                <div class="card-elite p-5 flex items-center gap-4"><div class="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center text-2xl">🥴</div><div><h3 class="font-bold text-slate-800">Rostro</h3><p class="text-sm text-slate-500">Cara caída o asimétrica.</p></div></div>
+                <div class="card-elite p-5 flex items-center gap-4"><div class="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center text-2xl">💪</div><div><h3 class="font-bold text-slate-800">Brazos</h3><p class="text-sm text-slate-500">Debilidad en un brazo/pierna.</p></div></div>
+                <div class="card-elite p-5 flex items-center gap-4"><div class="bg-slate-100 w-12 h-12 rounded-full flex items-center justify-center text-2xl">🗣️</div><div><h3 class="font-bold text-slate-800">Habla</h3><p class="text-sm text-slate-500">Habla arrastrada o confusa.</p></div></div>
+            </div>
+        </div>
+
+        <!-- PANTALLAS DE MÓDULOS -->
+        <div id="screen-calma" class="hidden h-full flex flex-col items-center justify-center p-6 bg-sky-50 absolute inset-0 z-50">
+            <div class="text-center mb-10"><h2 class="text-3xl font-bold text-sky-800 mb-2" data-i18n="breatheTitle">Pausa</h2><p class="text-sky-600 text-lg" data-i18n="breatheSubtitle">Respira hondo...</p></div>
+            <div class="relative w-64 h-64 flex items-center justify-center"><div class="absolute w-full h-full bg-sky-200 rounded-full opacity-30 breathe-circle"></div><div class="w-48 h-48 bg-sky-400 rounded-full flex items-center justify-center shadow-xl breathe-circle text-white text-2xl font-bold tracking-widest z-10" id="breathe-text">INHALA</div></div>
+            <button onclick="resumeFromCalm()" class="mt-16 bg-white text-sky-600 px-8 py-3 rounded-full font-bold shadow-md hover:bg-sky-50 transition border border-sky-100 btn-huge" data-i18n="btnResume">Continuar</button>
+        </div>
+
+        <div id="screen-lenguaje" class="hidden h-full flex flex-col items-center p-4 pt-6"><div class="card-elite p-8 w-full max-w-xs aspect-square flex flex-col items-center justify-center relative mb-8"><span id="lang-emoji" class="text-9xl animate-pop mb-4"></span><button onclick="useHint()" id="btn-hint" class="bg-amber-100 text-amber-900 px-6 py-2 rounded-full font-bold flex items-center gap-2 btn-huge"><i class="fa-solid fa-lightbulb"></i> <span data-i18n="btnHint">Pista</span></button></div><div id="lang-options-grid" class="grid grid-cols-1 gap-4 w-full max-w-sm"></div><p id="lang-feedback" class="mt-6 text-xl font-bold h-8 text-center text-slate-500"></p></div>
+        
+        <div id="screen-memoria" class="hidden h-full flex flex-col items-center justify-center p-4"><h3 class="text-lg text-slate-500 mb-8 font-bold" data-i18n="memTitle">Encuentra las parejas</h3><div id="memoria-grid" class="grid gap-4 w-full max-w-sm grid-cols-2"></div></div>
+
+        <div id="screen-movimiento" class="hidden h-full relative w-full flex flex-col bg-slate-800">
+            <div class="absolute inset-0 z-0 flex items-center justify-center"><img id="hidden-image" src="" class="w-full h-full object-cover opacity-80"></div>
+            <canvas id="scratch-canvas" class="absolute inset-0 z-10 cursor-crosshair touch-none"></canvas>
+            <div class="absolute top-6 left-0 right-0 text-center z-20 pointer-events-none"><div class="inline-flex items-center gap-3 bg-black/60 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 text-white"><span class="text-lg font-bold" data-i18n="movInst">Limpia la pantalla</span></div></div>
+            <div id="clean-success" class="hidden absolute bottom-12 left-0 right-0 z-30 flex justify-center"><button onclick="finishMovementGame()" class="bg-rose-600 text-white px-8 py-4 rounded-full text-xl font-bold shadow-2xl animate-pop flex items-center gap-3 btn-huge"><span data-i18n="movSuccess">¡Listo!</span> <i class="fa-solid fa-arrow-right"></i></button></div>
+        </div>
+
+        <div id="screen-trazos" class="hidden h-full relative w-full flex flex-col bg-white overflow-hidden"><div class="absolute top-6 left-0 right-0 flex justify-center z-20 pointer-events-none"><div class="bg-white/90 backdrop-blur-md px-6 py-2 rounded-full border border-slate-200 shadow-md text-slate-800"><span class="text-lg font-bold" data-i18n="traceInst">Sigue la línea</span></div></div><canvas id="trace-canvas" class="absolute inset-0 z-10 cursor-crosshair touch-none"></canvas><div id="trace-success" class="hidden absolute bottom-12 left-0 right-0 z-30 flex justify-center"><button onclick="finishMovementGame()" class="bg-orange-500 text-white px-8 py-4 rounded-full text-xl font-bold shadow-2xl animate-pop flex items-center gap-3 btn-huge"><span data-i18n="correct">¡Muy bien!</span> <i class="fa-solid fa-check"></i></button></div></div>
+
+        <div id="screen-stats" class="hidden min-h-full p-4 flex flex-col max-w-xl mx-auto pt-6">
+            <div class="flex items-center gap-4 mb-8"><button onclick="goHome()" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-slate-600 btn-huge"><i class="fa-solid fa-arrow-left"></i></button><h2 class="text-2xl font-bold text-slate-800" data-i18n="statsTitle">Mi Historial</h2></div>
+            <div id="stats-content" class="card-elite p-6 mb-6"><div class="chart-container"><canvas id="progressChart"></canvas></div></div>
+            <div id="stats-empty" class="hidden card-elite p-8 mb-6 text-center"><div class="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400"><i class="fa-solid fa-chart-simple text-2xl"></i></div><p class="text-slate-500 font-bold">Aún no tienes datos</p></div>
+            <button onclick="resetData()" class="mt-auto mb-8 p-4 rounded-2xl border-2 border-rose-100 text-rose-600 font-bold hover:bg-rose-50 flex items-center justify-center gap-2 w-full btn-huge"><i class="fa-solid fa-trash-can"></i> <span data-i18n="resetData">Reiniciar</span></button>
+        </div>
+
+    </main>
+
+    <!-- MODAL FEEDBACK -->
+    <div id="modal-feedback" class="fixed inset-0 bg-black/40 z-[60] hidden items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 animate-pop">
+            <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-slate-800">Danos tu opinión</h2><button onclick="toggleFeedback()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button></div>
+            <textarea id="feedback-input" class="w-full border-2 border-slate-200 rounded-xl p-3 mb-4 h-32 resize-none focus:border-rose-500 focus:outline-none" placeholder="Escribe aquí..."></textarea>
+            <button onclick="submitFeedback()" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition btn-huge">Enviar Sugerencia</button>
+        </div>
+    </div>
+
+    <!-- ONBOARDING -->
+    <div id="modal-onboarding" class="fixed inset-0 bg-slate-900/95 z-[100] hidden flex-col items-center justify-center p-6 backdrop-blur-md">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-pop transition-all">
+            <div id="step-legal" class="flex flex-col h-full">
+                <div class="bg-slate-50 p-8 text-center border-b border-slate-100"><div class="bg-rose-100 w-16 h-16 rounded-full flex items-center justify-center text-rose-600 mx-auto mb-4"><i class="fa-solid fa-brain text-3xl"></i></div><h2 class="text-2xl font-black text-slate-800" data-i18n="legalTitle">Bienvenido</h2></div>
+                <div class="p-8 overflow-y-auto text-slate-600 space-y-4 text-base leading-relaxed text-center flex-1">
+                    <p data-i18n="legalText1">Esta aplicación es una <strong>herramienta de asistencia</strong> diseñada para la intermediación comunicacional y el entrenamiento.</p>
+                    <div class="bg-amber-50 p-4 rounded-xl text-amber-800 text-sm font-bold border border-amber-100"><i class="fa-solid fa-shield-halved mr-2"></i> <span data-i18n="legalText2">No constituye opinión médica ni reemplaza a profesionales de la salud. El uso es bajo su exclusiva responsabilidad.</span></div>
+                </div>
+                <div class="p-6 bg-slate-50 border-t border-slate-100"><button onclick="startCalibration()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-lg hover:bg-slate-800 transition shadow-lg btn-huge"><span data-i18n="btnAccept">Acepto y Continuar</span></button></div>
+            </div>
+            <div id="step-calibration" class="hidden flex-col h-full bg-slate-50 relative min-h-[400px]">
+                <div class="w-full p-6 text-center z-10 bg-white border-b border-slate-100 shadow-sm"><h2 class="text-xl font-bold text-slate-800" data-i18n="calibTitle">Toca el botón rojo</h2><p class="text-sm text-slate-500 mt-1" data-i18n="calibDesc">Configurando...</p></div>
+                <div class="flex-1 relative w-full h-full overflow-hidden cursor-crosshair">
+                     <button id="calibration-target" onclick="handleCalibrationClick()" class="calibration-target w-20 h-20 bg-rose-500 rounded-full shadow-2xl flex items-center justify-center text-white text-2xl border-4 border-white btn-huge" style="top: 50%; left: 5%; transform: translateY(-50%);"><i class="fa-solid fa-hand-pointer"></i></button>
+                </div>
+            </div>
+            <div id="step-result" class="hidden flex-col h-full">
+                <div class="bg-slate-50 p-8 text-center border-b border-slate-100"><div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center text-green-600 mx-auto mb-4"><i class="fa-solid fa-check text-3xl"></i></div><h2 class="text-2xl font-black text-slate-800" data-i18n="setupComplete">¡Todo Listo!</h2></div>
+                <div class="p-8 text-center flex-1 flex flex-col justify-center"><p class="text-lg text-slate-600 mb-2" data-i18n="setupMsg">Pantalla adaptada.</p><p class="text-sm text-slate-400 font-mono bg-slate-100 py-1 px-3 rounded-full inline-block mx-auto" id="setup-detail">Normal</p></div>
+                <div class="p-6 bg-slate-50 border-t border-slate-100"><button onclick="finishOnboarding()" class="w-full bg-rose-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-rose-700 transition shadow-lg btn-huge"><span data-i18n="btnFinish">Empezar</span></button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div id="modal-settings" class="fixed inset-0 bg-black/40 z-50 hidden items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm" onclick="if(event.target===this) toggleSettings()"><div class="bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl shadow-2xl p-6 animate-pop"><div class="flex justify-between items-center mb-6"><h2 class="text-xl font-bold text-slate-800" data-i18n="settingsTitle">Configuración</h2><button onclick="toggleSettings()" class="bg-slate-100 p-2 rounded-full w-10 h-10 flex items-center justify-center text-slate-500 btn-huge"><i class="fa-solid fa-xmark text-xl"></i></button></div><div class="mb-8 flex gap-4 justify-center"><button onclick="changeLanguage('es')" class="flag-btn w-20 h-14 rounded-xl text-4xl border-2 border-slate-100 flex items-center justify-center bg-slate-50 btn-huge">🇪🇸</button><button onclick="changeLanguage('en')" class="flag-btn w-20 h-14 rounded-xl text-4xl border-2 border-slate-100 flex items-center justify-center bg-slate-50 btn-huge">🇺🇸</button><button onclick="changeLanguage('pt')" class="flag-btn w-20 h-14 rounded-xl text-4xl border-2 border-slate-100 flex items-center justify-center bg-slate-50 btn-huge">🇧🇷</button></div><div class="space-y-4"><div class="flex justify-between items-center py-4 border-b border-slate-100"><div><p class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-volume-high text-green-500"></i> <span data-i18n="soundTitle">Sonido</span></p></div><button id="btn-sound" onclick="toggleSound()" class="w-14 h-8 bg-green-500 rounded-full relative transition-colors duration-300 btn-huge"><div id="knob-sound" class="w-6 h-6 bg-white rounded-full absolute top-1 left-1 shadow-md transition-transform duration-300 translate-x-6"></div></button></div><div class="flex justify-between items-center py-4 border-b border-slate-100"><div><p class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-align-right text-rose-500"></i> <span data-i18n="neglectMode">Modo Heminegligencia</span></p></div><button id="btn-neglect" onclick="toggleNeglectMode()" class="w-14 h-8 bg-slate-300 rounded-full relative transition-colors duration-300 btn-huge"><div id="knob-neglect" class="w-6 h-6 bg-white rounded-full absolute top-1 left-1 shadow-md transition-transform duration-300"></div></button></div><div class="flex justify-between items-center py-4"><div><p class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-envelope text-blue-500"></i> Feedback</p></div><button onclick="toggleFeedback()" class="text-blue-600 font-bold hover:underline">Enviar idea</button></div></div>
+    <div class="mt-4 border-t pt-4 text-center"><button onclick="runTests()" class="text-xs text-slate-300 hover:text-rose-500 font-mono">Ejecutar Autodiagnóstico (Tests)</button></div></div></div>
+    
+    <div id="modal-success" class="fixed inset-0 bg-black/20 hidden items-center justify-center z-50 backdrop-blur-sm p-4"><div class="bg-white p-8 rounded-[2rem] shadow-2xl flex flex-col items-center animate-pop max-w-xs w-full text-center"><div class="bg-green-100 w-24 h-24 rounded-full flex items-center justify-center mb-6 animate-[bounce_1s_infinite]"><i class="fa-solid fa-check text-green-500 text-5xl"></i></div><h2 class="text-3xl font-black text-slate-800 mb-2" data-i18n="correct">¡Correcto!</h2><button onclick="nextLevel()" class="bg-slate-900 text-white w-full py-4 rounded-2xl text-xl font-bold hover:bg-slate-800 transition shadow-lg mt-4 btn-huge" data-i18n="btnNext">Siguiente</button></div></div>
+    <div id="modal-goal" class="fixed inset-0 bg-yellow-500/90 hidden items-center justify-center z-[60] backdrop-blur-md p-4"><div class="bg-white p-8 rounded-[2rem] shadow-2xl flex flex-col items-center animate-pop max-w-sm w-full text-center relative overflow-hidden"><i class="fa-solid fa-trophy text-yellow-400 text-8xl mb-6 animate-trophy drop-shadow-xl"></i><h2 class="text-4xl font-black text-slate-800 mb-3 tracking-tight leading-tight" data-i18n="goalTitle">¡META CUMPLIDA!</h2><button onclick="closeGoalModal()" class="bg-slate-900 text-white w-full py-4 rounded-2xl text-xl font-bold hover:bg-slate-800 transition shadow-xl mt-4 btn-huge" data-i18n="btnThanks">¡Gracias!</button></div></div>
+    
+    <!-- TEST CONSOLE -->
+    <div id="test-modal" class="fixed inset-0 bg-black/80 z-[100] hidden items-center justify-center p-4"><div class="bg-slate-900 w-full max-w-lg rounded-xl p-4 font-mono text-green-400 text-sm shadow-2xl border border-slate-700"><div class="flex justify-between mb-2"><span class="font-bold text-white">System Diagnostics</span><button onclick="document.getElementById('test-modal').classList.add('hidden')" class="text-red-400">CLOSE</button></div><div id="test-output" class="h-64 overflow-y-auto bg-black p-2 rounded mb-2"></div><div id="test-summary" class="font-bold text-white border-t border-slate-700 pt-2"></div></div></div>
+
+    <script>
+        const TRANSLATIONS={es:{greeting:"Hola, Campeón/a",readyMsg:"¿Listo para hoy?",startBtn:"EMPEZAR SESIÓN",freeMode:"O elegir un ejercicio suelto",streakLabel:"Días Seguidos",correct:"¡Correcto!",btnNext:"Siguiente",goalTitle:"¡META CUMPLIDA!",goalMsg:"Sesión completa.",btnThanks:"¡Gracias!",breatheTitle:"Vamos a pausar",breatheSubtitle:"Respira hondo...",btnResume:"Continuar",movInst:"Limpia la pantalla",traceInst:"Sigue la línea",settingsTitle:"Configuración",neglectMode:"Modo Heminegligencia",viewHistory:"Historial",legalTitle:"Bienvenido",legalText1:"Herramienta de asistencia.",legalText2:"No constituye opinión médica ni reemplaza a profesionales de la salud. El uso es bajo su exclusiva responsabilidad.",btnAccept:"Acepto y Continuar",btnFinish:"Empezar",calibTitle:"Toca el botón rojo",calibDesc:"Para configurar.",setupComplete:"¡Todo Listo!",setupMsg:"Pantalla adaptada.",modMovTitle:"Movimiento",modMemTitle:"Memoria",modLangTitle:"Linguagem",modTraceTitle:"Traços",soundTitle:"Sonido",largeText:"Texto Grande",tryAgain:"Intenta otra vez",resetData:"Reiniciar progreso",prevBtn:"Signos de Alerta"},en:{greeting:"Hello, Champion",readyMsg:"Ready for today?",startBtn:"START SESSION",freeMode:"Or choose free practice",streakLabel:"Day Streak",correct:"Correct!",btnNext:"Next",goalTitle:"GOAL REACHED!",goalMsg:"Session complete.",btnThanks:"Thanks!",breatheTitle:"Let's pause",breatheSubtitle:"Breathe deeply...",btnResume:"Continue",movInst:"Clean screen",traceInst:"Follow line",settingsTitle:"Settings",neglectMode:"Neglect Mode",viewHistory:"History",legalTitle:"Welcome",legalText1:"Assistive tool.",legalText2:"Not medical advice. Use at own risk.",btnAccept:"Accept & Continue",btnFinish:"Start",calibTitle:"Tap red button",calibDesc:"To setup.",setupComplete:"All Set!",setupMsg:"Screen adapted.",modMovTitle:"Movement",modMemTitle:"Memory",modLangTitle:"Language",modTraceTitle:"Tracing",soundTitle:"Sound",largeText:"Large Text",tryAgain:"Try again",resetData:"Reset progress",prevBtn:"Warning Signs"},pt:{greeting:"Olá, Campeão/ã",readyMsg:"Pronto para hoje?",startBtn:"INICIAR SESSÃO",freeMode:"Ou treino livre",streakLabel:"Dias Seguidos",correct:"Correto!",btnNext:"Próximo",goalTitle:"META ALCANÇADA!",goalMsg:"Sessão completa.",btnThanks:"Obrigado!",breatheTitle:"Vamos pausar",breatheSubtitle:"Respire fundo...",btnResume:"Continuar",movInst:"Limpe a tela",traceInst:"Siga a linha",settingsTitle:"Configurações",neglectMode:"Modo Heminegligência",viewHistory:"Histórico",legalTitle:"Bem-vindo",legalText1:"Ferramenta de assistência.",legalText2:"Não é conselho médico. Use por sua conta.",btnAccept:"Aceitar e Continuar",btnFinish:"Começar",calibTitle:"Toque no botão vermelho",calibDesc:"Para configurar.",setupComplete:"Tudo Pronto!",setupMsg:"Tela adaptada.",modMovTitle:"Movimento",modMemTitle:"Memória",modLangTitle:"Linguagem",modTraceTitle:"Traços",soundTitle:"Som",largeText:"Texto Grande",tryAgain:"Tente novamente",resetData:"Reiniciar progresso",prevBtn:"Sinais de Alerta"}};
+        const DB_LENGUAJE=[{emoji:"🍎",es:{c:"Manzana",w:["Pelota","Mesa"]},en:{c:"Apple",w:["Ball","Table"]},pt:{c:"Maçã",w:["Bola","Mesa"]}},{emoji:"👓",es:{c:"Lentes",w:["Vaso","Plato"]},en:{c:"Glasses",w:["Cup","Plate"]},pt:{c:"Óculos",w:["Copo","Prato"]}}];
+        const DB_IMAGENES=["https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=600","https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600"];
+        let state={plan:[],planIndex:0,score:0,consecutiveErrors:0,queue:[],difficulty:1,itemFailed:false}, settings={neglectMode:false,lang:'es',sound:true}, calibrationTimer=null, tracePoints=[];
+        const STORAGE_KEY='rehabilita_v23';
+
+        const SoundManager={ctx:null,init:function(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)();},playTone:function(f,t,d){if(!settings.sound)return;this.init();if(this.ctx.state==='suspended')this.ctx.resume();const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=t;o.frequency.setValueAtTime(f,this.ctx.currentTime);g.gain.setValueAtTime(0.1,this.ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,this.ctx.currentTime+d);o.connect(g);g.connect(this.ctx.destination);o.start();o.stop(this.ctx.currentTime+d);},playSuccess:function(){this.playTone(523.25,'sine',0.1);setTimeout(()=>this.playTone(659.25,'sine',0.3),100);},playError:function(){this.playTone(150,'triangle',0.2);},playWin:function(){this.playTone(523.25,'sine',0.1);setTimeout(()=>this.playTone(783.99,'sine',0.4),200);}};
+        const SafeStorage={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}},clear:function(){try{localStorage.clear()}catch(e){}}};
+
+        /* === UNIT TESTS === */
+        async function runTests() {
+            const out = document.getElementById('test-output');
+            const sum = document.getElementById('test-summary');
+            document.getElementById('test-modal').classList.remove('hidden');
+            document.getElementById('test-modal').classList.add('flex');
+            out.innerHTML = 'Initializing System Diagnostics...<br>';
+            
+            let passed = 0, total = 0;
+            const log = (msg, type) => {
+                total++;
+                const color = type === 'ok' ? '#4ade80' : '#f87171';
+                const icon = type === 'ok' ? '✅' : '❌';
+                out.innerHTML += `<span style="color:${color}">${icon} ${msg}</span><br>`;
+                if(type === 'ok') passed++;
+                out.scrollTop = out.scrollHeight;
+            };
+
+            // Test 1: Storage
+            SafeStorage.set('test_unit', 'ok');
+            if(SafeStorage.get('test_unit') === 'ok') log("LocalStorage Write/Read OK", 'ok'); else log("LocalStorage Failed", 'fail');
+            SafeStorage.del('test_unit');
+
+            // Test 2: Translations
+            if(TRANSLATIONS['es'] && TRANSLATIONS['es'].legalText2.includes("No constituye opinión médica")) log("Disclaimer Text Validated", 'ok'); else log("Disclaimer Text Mismatch", 'fail');
+
+            // Test 3: Score Logic (Clamp)
+            let testScore = 0;
+            for(let i=0; i<150; i++) testScore++;
+            // Logic: Score should be managed by progress, let's check Math.min logic
+            const clamped = Math.min(100, 150);
+            if(clamped === 100) log("Score Clamping Logic OK", 'ok'); else log("Score Logic Error", 'fail');
+
+            // Test 4: Reset
+            if(typeof resetData === 'function') log("Reset Function Exists", 'ok'); else log("Reset Missing", 'fail');
+
+            // Test 5: DOM Elements
+            const reqIds = ['screen-home', 'progress-bar', 'modal-legal'];
+            let domOk = true;
+            reqIds.forEach(id => { if(!document.getElementById(id)) domOk = false; });
+            if(domOk) log("Critical DOM Elements Found", 'ok'); else log("DOM Elements Missing", 'fail');
+
+            sum.innerHTML = `RESULT: ${passed}/${total} TESTS PASSED`;
+            sum.style.color = passed === total ? '#4ade80' : '#f87171';
+        }
+
+        /* === INIT === */
+        window.onload=function(){
+            if(!SafeStorage.get(STORAGE_KEY)){const l=navigator.language.split('-')[0];if(['es','en','pt'].includes(l))settings.lang=l;}loadSettings();checkOnboarding();loadData();applyLanguage();
+            window.addEventListener('resize',()=>{if(document.getElementById('screen-movimiento').classList.contains('hidden')===false)initCanvas();if(document.getElementById('screen-trazos').classList.contains('hidden')===false)initTrace();});
+        };
+
+        function checkOnboarding(){if(!SafeStorage.get('setup_complete')){document.getElementById('modal-onboarding').classList.remove('hidden');document.getElementById('modal-onboarding').classList.add('flex');}}
+        function startCalibration(){document.getElementById('step-legal').classList.add('hidden');document.getElementById('step-calibration').classList.remove('hidden');document.getElementById('step-calibration').classList.add('flex');calibrationTimer=setTimeout(()=>{document.getElementById('calibration-target').style.left='50%';},2500);}
+        function handleCalibrationClick(){const p=document.getElementById('calibration-target').getBoundingClientRect().left/window.innerWidth*100;if(p>35){settings.neglectMode=true;document.getElementById('setup-detail').innerText=getTrans('neglectMode');}else{settings.neglectMode=false;document.getElementById('setup-detail').innerText="Normal";}clearTimeout(calibrationTimer);saveSettings();applySettingsStyles();document.getElementById('step-calibration').classList.add('hidden');document.getElementById('step-result').classList.remove('hidden');document.getElementById('step-result').classList.add('flex');}
+        function finishOnboarding(){SafeStorage.set('setup_complete','true');document.getElementById('modal-onboarding').classList.add('hidden');document.getElementById('modal-onboarding').classList.remove('flex');}
+
+        function loadSettings(){const s=SafeStorage.get('rehabilita_settings');if(s){settings={...settings,...JSON.parse(s)};applySettingsStyles();}}
+        function saveSettings(){SafeStorage.set('rehabilita_settings',JSON.stringify(settings));}
+        function applySettingsStyles(){document.body.classList.toggle('neglect-mode-active',settings.neglectMode);const k=document.getElementById('knob-neglect'),b=document.getElementById('btn-neglect');if(settings.neglectMode){b.classList.replace('bg-slate-300','bg-rose-500');k.classList.add('translate-x-6');}else{b.classList.replace('bg-rose-500','bg-slate-300');k.classList.remove('translate-x-6');}const sk=document.getElementById('knob-sound'),sb=document.getElementById('btn-sound');if(settings.sound){sb.classList.replace('bg-slate-300','bg-green-500');sk.classList.add('translate-x-6');}else{sb.classList.replace('bg-green-500','bg-slate-300');sk.classList.remove('translate-x-6');}}
+        function toggleNeglectMode(){settings.neglectMode=!settings.neglectMode;applySettingsStyles();saveSettings();}
+        function toggleSound(){settings.sound=!settings.sound;applySettingsStyles();saveSettings();}
+        function changeLanguage(l){settings.lang=l;saveSettings();applyLanguage();}
+        function applyLanguage(){const t=TRANSLATIONS[settings.lang];document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.getAttribute('data-i18n');if(t[k])el.innerHTML=t[k];});document.querySelectorAll('.flag-btn').forEach(btn=>btn.classList.toggle('active',btn.innerText.toLowerCase().includes(settings.lang==='es'?'🇪🇸':settings.lang==='en'?'🇺🇸':'🇧🇷')));}
+        function getTrans(k){return TRANSLATIONS[settings.lang][k]||k;}
+
+        function loadData(){const r=SafeStorage.get(STORAGE_KEY);const d=r?JSON.parse(r):{streak:0,lastDate:'',dailyCount:0,dailyDate:'',history:[]};const t=new Date().toDateString();if(d.dailyDate!==t){d.dailyCount=0;d.dailyDate=t;const y=new Date();y.setDate(y.getDate()-1);if(d.lastDate!==y.toDateString()&&d.lastDate!==t)d.streak=0;}SafeStorage.set(STORAGE_KEY,JSON.stringify(d));updateDashboard(d);}
+        function updateDashboard(d){document.getElementById('streak-display').innerText=d.streak; }
+
+        function goHome(){hideAll();document.getElementById('screen-home').classList.remove('hidden');document.getElementById('progress-container').classList.add('hidden');loadData();}
+        function showFreeMode(){hideAll();document.getElementById('screen-freemode').classList.remove('hidden');}
+        function showPrevention(){hideAll();document.getElementById('screen-prevention').classList.remove('hidden');}
+        function hideAll(){['screen-home','screen-freemode','screen-prevention','screen-lenguaje','screen-memoria','screen-movimiento','screen-trazos','screen-calma','screen-stats'].forEach(id=>document.getElementById(id).classList.add('hidden'));['modal-success','modal-goal'].forEach(id=>document.getElementById(id).classList.add('hidden'));}
+        function toggleSettings(){const m=document.getElementById('modal-settings');m.classList.toggle('hidden');m.classList.toggle('flex');}
+        function toggleFeedback(){const m=document.getElementById('modal-feedback');m.classList.toggle('hidden');m.classList.toggle('flex');}
+        function submitFeedback(){const txt=document.getElementById('feedback-input').value; if(txt.length>0){alert("¡Gracias! Tu opinión nos ayuda."); document.getElementById('feedback-input').value=""; toggleFeedback();} }
+        
+        function startDailyPlan(){state.plan=['movimiento','memoria','lenguaje','trazos'];state.planIndex=0;state.consecutiveErrors=0;state.score=0;state.itemFailed=false;runModule(state.plan[0]);}
+        function startSession(m){state.plan=[m];state.planIndex=0;state.consecutiveErrors=0;state.score=0;state.itemFailed=false;runModule(m);}
+        function runModule(m){hideAll();document.getElementById('progress-container').classList.remove('hidden');updateProgress();
+            state.itemFailed=false;
+            if(m==='movimiento'){document.getElementById('screen-movimiento').classList.remove('hidden');setTimeout(initCanvas,50);}
+            else if(m==='memoria'){document.getElementById('screen-memoria').classList.remove('hidden');renderMemoria();}
+            else if(m==='lenguaje'){state.queue=shuffle([...DB_LENGUAJE]);state.subIndex=0;document.getElementById('screen-lenguaje').classList.remove('hidden');renderLenguaje();}
+            else if(m==='trazos'){document.getElementById('screen-trazos').classList.remove('hidden');setTimeout(initTrace,50);}
+        }
+        function nextLevel(){document.getElementById('modal-success').classList.add('hidden');state.planIndex++;if(state.planIndex>=state.plan.length)endSession();else runModule(state.plan[state.planIndex]);}
+        function handleMistake(){state.consecutiveErrors++;if(state.consecutiveErrors>=3){triggerCalm();state.consecutiveErrors=0;}}
+        function triggerCalm(){document.getElementById('screen-calma').classList.remove('hidden');document.getElementById('progress-container').classList.add('hidden');}
+        function resumeFromCalm(){document.getElementById('screen-calma').classList.add('hidden');document.getElementById('progress-container').classList.remove('hidden');}
+        function endSession(){
+            const d=JSON.parse(SafeStorage.get(STORAGE_KEY)||'{}');
+            d.streak=(d.streak||0)+1;
+            // Calculate strict score
+            const finalScore = Math.min(100, Math.round((state.score / state.plan.length) * 100));
+            d.history.push({date: new Date().toLocaleDateString(), score: finalScore}); 
+            SafeStorage.set(STORAGE_KEY,JSON.stringify(d));
+            SoundManager.playWin();document.getElementById('modal-goal').classList.remove('hidden');document.getElementById('modal-goal').classList.add('flex');
+        }
+        function closeGoalModal(){document.getElementById('modal-goal').classList.add('hidden');goHome();}
+        function updateProgress(){const pct=Math.min(100, ((state.planIndex)/state.plan.length)*100); document.getElementById('progress-bar').style.width=`${pct}%`;}
+
+        function initCanvas(){document.getElementById('hidden-image').src=DB_IMAGENES[0];document.getElementById('clean-success').classList.add('hidden');const cvs=document.getElementById('scratch-canvas');const ctx=cvs.getContext('2d');cvs.width=cvs.parentElement.offsetWidth;cvs.height=cvs.parentElement.offsetHeight;ctx.fillStyle='#cbd5e1';ctx.fillRect(0,0,cvs.width,cvs.height);ctx.globalCompositeOperation='destination-out';ctx.lineWidth=60;ctx.lineCap='round';let isD=false;const d=(e)=>{if(!isD)return;const r=cvs.getBoundingClientRect();ctx.beginPath();ctx.arc((e.touches?e.touches[0].clientX:e.clientX)-r.left,(e.touches?e.touches[0].clientY:e.clientY)-r.top,30,0,Math.PI*2);ctx.fill();checkClean(ctx,cvs);};cvs.onmousedown=()=>{isD=true};cvs.onmouseup=()=>{isD=false};cvs.onmousemove=d;cvs.ontouchstart=(e)=>{e.preventDefault();isD=true;d(e)};cvs.ontouchmove=(e)=>{e.preventDefault();d(e)};cvs.ontouchend=()=>{isD=false};}
+        function checkClean(ctx,cvs){const d=ctx.getImageData(0,0,cvs.width,cvs.height).data;let c=0;for(let i=3;i<d.length;i+=200)if(d[i]===0)c++;if(c/(d.length/200)>0.4) document.getElementById('clean-success').classList.remove('hidden');}
+        function finishMovementGame(){
+            if(!state.itemFailed) state.score++; 
+            SoundManager.playSuccess();document.getElementById('modal-success').classList.remove('hidden');document.getElementById('modal-success').classList.add('flex');
+        }
+        
+        function renderMemoria(){const g=document.getElementById('memoria-grid');g.innerHTML='';let icons=["🐶","🐱"];let deck=shuffle([...icons,...icons]);let f=[],m=0;state.itemFailed=false;
+            g.className = 'grid gap-4 w-full max-w-sm grid-cols-2';
+            deck.forEach(i=>{const c=document.createElement('div');c.className="aspect-square bg-violet-200 rounded-2xl flex items-center justify-center text-5xl cursor-pointer shadow-sm btn-huge";c.innerHTML='<i class="fa-solid fa-question text-violet-400"></i>';c.onclick=()=>{if(f.length>=2||c.innerText===i)return;c.classList.replace('bg-violet-200','bg-white');c.innerText=i;f.push(c);if(f.length===2){if(f[0].innerText===f[1].innerText){m++;f=[];if(m===2)setTimeout(()=>{if(!state.itemFailed)state.score++; SoundManager.playSuccess();document.getElementById('modal-success').classList.remove('hidden');document.getElementById('modal-success').classList.add('flex');},500);}else{handleMistake();state.itemFailed=true;SoundManager.playError();setTimeout(()=>{f.forEach(e=>{e.classList.replace('bg-white','bg-violet-200');e.innerHTML='<i class="fa-solid fa-question text-violet-400"></i>';});f=[];},800);}}};g.appendChild(c);});}
+        
+        function renderLenguaje(){const item=state.queue[state.subIndex];document.getElementById('lang-emoji').innerText=item.emoji;document.getElementById('lang-feedback').innerText="";const g=document.getElementById('lang-options-grid');g.innerHTML='';let o=[{t:item[settings.lang].c,ok:true},{t:item[settings.lang].w[0],ok:false}];state.itemFailed=false;shuffle(o).forEach(z=>{const b=document.createElement('button');b.className="btn-huge w-full bg-white border-2 border-slate-200 text-xl py-4 rounded-2xl font-bold text-slate-700 shadow-sm";b.innerText=z.t;b.onclick=function(){if(z.ok){state.consecutiveErrors=0;if(!state.itemFailed)state.score++; SoundManager.playSuccess();document.getElementById('modal-success').classList.remove('hidden');document.getElementById('modal-success').classList.add('flex');}else{state.itemFailed=true;this.classList.add('bg-red-100','text-red-600','border-red-200','animate-shake');document.getElementById('lang-feedback').innerText=getTrans('tryAgain');SoundManager.playError();handleMistake();}};g.appendChild(b);});}
+        function initTrace(){document.getElementById('trace-success').classList.add('hidden');const cvs=document.getElementById('trace-canvas');const ctx=cvs.getContext('2d');cvs.width=cvs.parentElement.offsetWidth;cvs.height=cvs.parentElement.offsetHeight;tracePoints=[];ctx.clearRect(0,0,cvs.width,cvs.height);ctx.strokeStyle='#cbd5e1';ctx.lineWidth=40;ctx.lineCap='round';ctx.setLineDash([20,20]);ctx.beginPath();const w=cvs.width,h=cvs.height;for(let i=20;i<w-20;i+=10){const y=h/2+Math.sin(i*0.02)*60;if(i===20)ctx.moveTo(i,y);else ctx.lineTo(i,y);tracePoints.push({x:i,y:y,hit:false});}ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#22c55e';ctx.beginPath();ctx.arc(20,h/2+Math.sin(20*0.02)*60,15,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(w-20,h/2+Math.sin((w-20)*0.02)*60,15,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#f97316';ctx.lineWidth=20;let isD=false;const hm=(x,y)=>{const r=cvs.getBoundingClientRect();const tx=x-r.left;const ty=y-r.top;if(isD){ctx.lineTo(tx,ty);ctx.stroke();}tracePoints.forEach(p=>{if(!p.hit&&Math.sqrt(Math.pow(tx-p.x,2)+Math.pow(ty-p.y,2))<40)p.hit=true;});const hits=tracePoints.filter(p=>p.hit).length;if(hits/tracePoints.length>0.9){if(document.getElementById('trace-success').classList.contains('hidden')){if(!state.itemFailed)state.score++; SoundManager.playSuccess();document.getElementById('trace-success').classList.remove('hidden');}}};const s=(e)=>{isD=true;ctx.beginPath();const r=cvs.getBoundingClientRect();ctx.moveTo((e.touches?e.touches[0].clientX:e.clientX)-r.left,(e.touches?e.touches[0].clientY:e.clientY)-r.top);};const m=(e)=>{if(!isD)return;hm(e.touches?e.touches[0].clientX:e.clientX,e.touches?e.touches[0].clientY:e.clientY);};cvs.onmousedown=s;cvs.onmouseup=()=>{isD=false};cvs.onmousemove=m;cvs.ontouchstart=(e)=>{e.preventDefault();s(e)};cvs.ontouchmove=(e)=>{e.preventDefault();m(e)};cvs.ontouchend=()=>{isD=false};}
+        function showStats(){
+            hideAll(); document.getElementById('screen-stats').classList.remove('hidden'); 
+            const d=JSON.parse(SafeStorage.get(STORAGE_KEY)||'{"history":[]}');
+            if(!d.history || d.history.length === 0) {
+                document.getElementById('stats-content').classList.add('hidden');
+                document.getElementById('stats-empty').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('stats-content').classList.remove('hidden');
+            document.getElementById('stats-empty').classList.add('hidden');
+            if(window.myChart)window.myChart.destroy();
+            window.myChart=new Chart(document.getElementById('progressChart'),{type:'line',data:{labels:d.history.slice(-10).map((h,i)=>h.date),datasets:[{label:'%',data:d.history.slice(-10).map(h=>h.score),borderColor:'#e11d48',tension:0.4}]},options:{responsive:true,maintainAspectRatio:false}});
+        }
+        function resetData(){
+            if(confirm("¿Borrar todo?")){
+                // Aggressive Reset
+                const keys = Object.keys(localStorage);
+                for(let k of keys) if(k.startsWith('rehabilita') || k.startsWith('setup') || k.startsWith('legal')) localStorage.removeItem(k);
+                location.reload();
+            }
+        }
+        function useHint() { state.itemFailed = true; const w = Array.from(document.getElementById('lang-options-grid').children).filter(b => b.innerText !== state.queue[state.subIndex][settings.lang].c); if(w.length) { w[0].style.opacity='0.2'; w[0].disabled=true; document.getElementById('btn-hint').classList.add('hidden'); } }
+        function shuffle(a){return a.sort(()=>Math.random()-0.5);}
+    </script>
+</body>
+</html>

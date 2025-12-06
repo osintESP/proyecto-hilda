@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rehabilita-web
+  namespace: rehabilita
+  labels:
+    app: rehabilita-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rehabilita-web
+  template:
+    metadata:
+      labels:
+        app: rehabilita-web
+    spec:
+      containers:
+      - name: rehabilita-web
+        image: rehabilita:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
