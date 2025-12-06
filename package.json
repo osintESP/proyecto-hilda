@@ -1,0 +1,14 @@
+{
+    "name": "rehabilita",
+    "version": "1.0.0",
+    "description": "Cognitive rehabilitation web application",
+    "main": "js/app.js",
+    "scripts": {
+        "test": "jest --env=jsdom"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "jest": "^29.7.0",
+        "jest-environment-jsdom": "^29.7.0"
+    }
+}
